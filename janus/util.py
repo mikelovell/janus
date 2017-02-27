@@ -3,6 +3,7 @@ from cStringIO import StringIO
 import fcntl
 import importlib
 import socket
+import time
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
@@ -14,6 +15,8 @@ from paramiko.message import Message
 from paramiko.py3compat import byte_chr
 from paramiko.rsakey import RSAKey
 from paramiko.ssh_exception import SSHException
+
+from janus import certificate
 
 key_name_to_class = {
     'ssh-rsa': RSAKey,
@@ -43,6 +46,7 @@ def import_class(name):
 
 SSH2_AGENTC_ADD_IDENTITY = byte_chr(17)
 SSH2_AGENTC_ADD_ID_CONSTRAINED = byte_chr(25)
+SSH_AGENT_CONSTRAIN_LIFETIME = byte_chr(1)
 SSH_AGENT_SUCCESS = 6
 
 class JanusSSHAgent(agent.Agent):
@@ -59,18 +63,16 @@ class JanusSSHAgent(agent.Agent):
             err = "Key cannot be used for signing or added to the agent {}"
             raise SSHException(err)
 
-        # for future key adding with contstraints
-        #if cert.valid_before < certificate.MAX_CERT_VALID_BEFORE:
-        #    msg_type = SSH2_AGENTC_ADD_IDENTITY
-        #    expiration = cert.valid_before
-        #    time_left = int(expiration - time.time())
-        #else:
-        #    msg_type = SSH2_AGENTC_ADD_ID_CONSTRAINED
-        #    time_left = None
-        msg_type = SSH2_AGENTC_ADD_IDENTITY
+        if cert.valid_before < certificate.MAX_CERT_VALID_BEFORE:
+            req_type = SSH2_AGENTC_ADD_ID_CONSTRAINED
+            expiration = cert.valid_before
+            time_left = int(expiration - time.time())
+        else:
+            req_type = SSH2_AGENTC_ADD_IDENTITY
+            time_left = None
 
         msg = Message()
-        msg.add_byte(msg_type)
+        msg.add_byte(req_type)
         msg.add_string(cert.get_name())
         msg.add_string(cert.asbytes())
 
@@ -95,7 +97,10 @@ class JanusSSHAgent(agent.Agent):
             msg.add_mpint(key.signing_key.privkey.secret_multiplier)
 
         msg.add_string(cert.key_id)
-        # future: add constraint
+
+        if time_left:
+            msg.add_byte(SSH_AGENT_CONSTRAIN_LIFETIME)
+            msg.add_int(time_left)
 
         restype, res = self._send_message(msg)
         if restype != SSH_AGENT_SUCCESS:
