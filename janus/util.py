@@ -65,8 +65,7 @@ class JanusSSHAgent(agent.Agent):
 
         if cert.valid_before < certificate.MAX_CERT_VALID_BEFORE:
             req_type = SSH2_AGENTC_ADD_ID_CONSTRAINED
-            expiration = cert.valid_before
-            time_left = int(expiration - time.time())
+            time_left = int(cert.valid_before - time.time())
         else:
             req_type = SSH2_AGENTC_ADD_IDENTITY
             time_left = None
