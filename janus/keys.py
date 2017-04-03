@@ -38,10 +38,9 @@ class KeyBackend(object):
     def pubkey(self):
         key_b64 = base64.b64encode(self.pub_key.asbytes())
         if self.pub_key_comment:
-            return "{} {} {}".format(self.pub_key.get_name(), key_b64,
-                                     self.pub_key_comment)
+            return self.pub_key.get_name(), key_b64, self.pub_key_comment
         else:
-            return "{} {}".format(self.pub_key.get_name(), key_b64)
+            return self.pub_key.get_name(), key_b64, ''
 
 class KeyFileBackend(KeyBackend):
     def __init__(self, key_file, pub_key_file, **kwargs):

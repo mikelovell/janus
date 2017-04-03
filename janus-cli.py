@@ -137,7 +137,8 @@ def cmd_capubkey(args):
         err = "Authority {} count not be found.".format(args.ca)
         raise Exception(err)
 
-    key = authority.get_pubkey()
+    keytype, keyb64, comment = authority.get_pubkey()
+    key = "{} {} {}".format(keytype, keyb64, comment)
     print(key)
 
     if args.key_file:
