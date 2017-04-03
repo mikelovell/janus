@@ -1,0 +1,182 @@
+======
+GET /
+
+  Returns a list of API Versions and version metadata
+
+  arguments:
+    None
+  
+  response codes: 
+    200 : OK
+
+  response data:
+    Array of 1 or more API Versions. Each will contain the following:
+    version : Integer : Version number of the API.
+    path : String : Path to use for future requests of this API Version.
+    date : String : Date identifier of when the API version was first released
+      in the format "YYYY-MM"
+    updated : String : Date identifier of when the API version was last
+      modified in the format "YYYY-MM"
+
+======
+API Version 1
+
+NOTE : This API Version is considered UNSTABLE.
+
+GET /v1/authorities
+
+  Retrieve a list of known SSH Authorities
+
+  arguments:
+    None
+
+  reponse codes:
+    200 : OK
+
+  response data:
+    Array of zero or more SSH Authorities. Each will contain the following:
+    id : String : UUID for this authority
+    name : String : A name suitable for displaying to the users.
+    state : String : The current state the authority. A state of 'Online'
+      means that the authority is available to perform signing requests. An
+      authority may be 'Offline' in which case the authority is known but is
+      not currently able to perform a signing request. This may be due to the
+      private key not being available.
+
+GET /v1/authorities/<authority id>
+
+  Retrieve data about a specific SSH Authority
+
+  arguments:
+    None
+
+  reponse code:
+    200 : OK
+
+  response data:
+    id : String : UUID for this authority
+    name : String : A name suitable for displaying to the users.
+    state : String : The current state the authority. A state of 'Online'
+      means that the authority is available to perform signing requests. An
+      authority may be 'Offline' in which case the authority is known but is
+      not currently able to perform a signing request. This may be due to the
+      private key not being available.
+    publicKeyType : String : The type of the ssh public key. i.e. 'ssh-rsa'
+      for a ssh rsa public key
+    publicKey : String : Base64 encoded public key data. This is the format
+      defined in RFC4253 Section 6.6 for ssh-dss and ssh-rsa keytypes.
+      ECSDA would follow message formats used in OpenSSH and Paramiko.
+
+GET /v1/authorities/<authority id>/krl
+
+  Retrieve the key revocation list for this authority
+
+  arguments:
+    None
+
+  reponse code:
+    200 : OK
+
+  response data:
+    krl : String : Base64 encoded krl data as defined in PROTOCOL.certkeys
+
+POST /v1/authorities/<authority id>/userCertificate
+
+  Requests that a new certificate be created from the provided public key
+  data
+
+  arguments:
+    publicKeyType : String : The type of the ssh public key. i.e. 'ssh-rsa'
+      for a ssh rsa public key
+    publicKey : String : Base64 encoded public key data. This is the format
+      defined in RFC4253 Section 6.6 for ssh-dss and ssh-rsa keytypes.
+      ECSDA would follow message formats used in OpenSSH and Paramiko.
+    requestedDuration : Integer : The requested duration of the certificate
+      specified in seconds from when the certificate is requested. Since
+      the certificate may not be signed immediately, time between request
+      and receiving a signed cert needs to be considered by the requestor.
+      The certificate may be signed for a shorter duration base on policy of
+      the authority.
+    criticalOptions : Json Object : This contains the list of critical
+      options to be included in the certificate. These are key/value pairs
+      with a string for the key and value. Keys must be in the list of
+      defined critical options defined in PROTOCOL.certkeys from OpenSSH.
+    extensions : Json Object : This contains a list of extensions to be
+      included in the certificate. These are key/value pairs with a string
+      for the key and value. Keys must be in the list of extensions defined
+      in PROTOCOL.certkeys from OpenSSH. In the case that a key has an empty
+      value defined in PROTOCOL.certkeys, an empty string should be the value
+      in the Json object.
+    principles : Array of Strings : Array of Strings to use for the valid
+      principles in the ssh certificate. The username of the user will not be
+      automatically added to this list and should be specified if needed. An
+      empty list will result in an empty list in the certificate. How this is
+      interpreted by other applications using this certificate are not defined
+      here.
+
+  response codes:
+    201 : Certificate requested was processed and signed immediately.
+    202 : The certificate request was received but was not immediately signed.
+      The requestor should check the certificate resource to determine if the
+      certificate has been signed and to retrieve the certificate.
+    400 : The request contains an argument that does not contain valid
+      arguments. The error message should contain the invalid argument. These
+      might include, but are not limited to, a bad publicKeyType, invalid
+      publicKey data for the specified publicKeyType, or criticalOptions or
+      extensions not definied in PROTOCOL.certkeys.
+    403 : The certificate was requested with an argument that is not valid
+      for the requestor. The error message should contain the invalid argument
+      that was invalid and why. These might include, but are not limited to,
+      requesting a certificate for an principle the user is not permitted to.
+
+  response data:
+    id : String : UUID identifying this certificate
+    state : String : The state of the certificate signing request. Either
+      'Pending' or 'Signed' for whether the certificate is awaiting signing
+      or has been signed, respectively.
+    certificateKeyType : String : The string identifing the certificate key
+      type. This will be one of the strings defined in PROTOCOL.certkeys and
+      will match the provided key type. This field is not provided on a 202
+      response.
+    certificate : String : The signed certificate if it was immediately
+      signed. This field is not provided on a 202 response.
+
+GET /v1/authorities/<authority id>/userCertificate/<certificate id>
+
+  Retrieve the data on a requested certificate
+
+  arguments:
+    None
+
+  response codes:
+    200 : OK
+    401 : User does not have permission to view this certificate
+    410 : The certificate has been revoked.
+
+  response data:
+    id : String : UUID identifying this certificate
+    state : String : The state of the certificate signing request. Either
+      'Pending' or 'Signed' for whether the certificate is awaiting signing
+      or has been signed, respectively.
+    certificateKeyType : String : The string identifing the certificate key
+      type. This will be one of the strings defined in PROTOCOL.certkeys and
+      will match the provided key type. If the state is Pending, then this
+      field is not provided.
+    certificate : String : The signed certificate if it was immediately
+      signed. If the state is Pending, then this field is not provided.
+
+DELETE /v1/authorities/<authority id>/userCertificate/<certificate id>
+
+  Revoke and delete a user certificate
+
+  arguments:
+    None
+
+  response codes:
+    202 : The request to revoke the certificate has been accepted and the
+      certificate will be added to the authority's krl.
+    401 : User does not have permission to revoke the certificate
+    410 : The certificate has been revoked.
+
+  response data:
+    None
