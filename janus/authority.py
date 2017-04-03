@@ -100,7 +100,7 @@ class SSHCertAuthority(object):
 
     @staticmethod
     def from_configparser(cfg, section):
-        ca_name = section[3:]  #strip the ca_
+        ca_name = section[9:]  #strip the janus:ca_
         if not cfg.has_option(section, 'key_class'):
             err = "key_class not defined for ca {}".format(ca_name)
             raise Exception(err)
@@ -127,7 +127,7 @@ class SSHCertAuthority(object):
         else:
             filters = []
         for filt_name in filters:
-            filter_section = "filter_{}".format(filt_name)
+            filter_section = "janus:filter_{}".format(filt_name)
             if not cfg.has_section(filter_section):
                 err = "Config for filter {} not found".format(filt_name)
                 raise Exception(err)
@@ -155,19 +155,19 @@ class SSHCertAuthorityManager(object):
 
     @staticmethod
     def from_configparser(cfg):
-        if not cfg.has_section('general'):
-            err = 'Config File does not have a general section'
+        if not cfg.has_section('janus:global'):
+            err = 'Config File does not have a janus:global section'
             raise Exception(err)
 
-        if not cfg.has_option('general', 'enabled_authorities'):
-            err = 'enabled_authorities not defined in general section'
+        if not cfg.has_option('janus:global', 'enabled_authorities'):
+            err = 'enabled_authorities not defined in janus:global section'
             raise Exception(err)
 
         authorities = {}
-        authorities_str = cfg.get('general', 'enabled_authorities')
+        authorities_str = cfg.get('janus:global', 'enabled_authorities')
         authority_names = authorities_str.split(',')
         for authority_name in authority_names:
-            authority_section = "ca_{}".format(authority_name)
+            authority_section = "janus:ca_{}".format(authority_name)
             if not cfg.has_section(authority_section):
                 err = "Authority section for {} not found".format(authority_section)
                 print(err)
