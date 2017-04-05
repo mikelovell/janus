@@ -4,6 +4,7 @@ import argparse
 import base64
 from ConfigParser import SafeConfigParser
 from cStringIO import StringIO
+import getpass
 import os
 import sys
 import traceback
@@ -14,10 +15,11 @@ from paramiko.agent import Agent
 from paramiko.dsskey import DSSKey
 from paramiko.ecdsakey import ECDSAKey
 from paramiko.rsakey import RSAKey
+from paramiko.ssh_exception import PasswordRequiredException
 
 from janus.authority import SSHCertAuthorityManager
 from janus import certificate
-from janus.util import JanusContext, JanusSSHAgent
+from janus import util
 
 DEFAULT_CONFIG = 'example.conf'
 DEFAULT_KEY_TYPE = 'ecdsa'
@@ -43,7 +45,12 @@ def generate_key(args):
     return key_class.generate(*key_args)
 
 def read_key_file(args):
-    raise NotImplementedError()
+    try:
+        key = util.read_key_file(args.key_file)
+    except PasswordRequiredException:
+        p = getpass.getpass("Password for {}: ".format(args.key_file))
+        key = util.read_key_file(args.key_file, password=p)
+    return key
 
 def write_cert_file(args, cert):
     cert_path = "{}-cert.pub".format(args.key_file)
@@ -58,7 +65,7 @@ def add_key_cert_to_agent(args, key, cert):
         err = "Agent socket not provided"
         raise Exception(err)
 
-    agent = JanusSSHAgent(args.agent_sock)
+    agent = util.JanusSSHAgent(args.agent_sock)
     return agent.add_key_cert(key, cert)
 
 def cmd_calist(args):
@@ -86,7 +93,7 @@ def cmd_certreq(args):
     else:
         key = read_key_file(args)
 
-    context = JanusContext.from_local_shell()
+    context = util.JanusContext.from_local_shell()
     request = {}
     request['publicKeyType'] = key.get_name()
     request['publicKey'] = base64.b64encode(key.asbytes())

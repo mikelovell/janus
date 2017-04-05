@@ -26,6 +26,9 @@ key_name_to_class = {
     'ecdsa-sha2-nistp256': ECDSAKey,
     'ecdsa-sha2-nistp384': ECDSAKey,
     'ecdsa-sha2-nistp521': ECDSAKey,
+    'RSA': RSAKey,
+    'EC': ECDSAKey,
+    'DSA': DSSKey,
 }
 
 @contextmanager
@@ -45,6 +48,21 @@ def import_class(name):
         raise ImportError("{} in module {} not found".\
                           format(parts[2], parts[0]))
     return cls
+
+def read_key_file(filepath, password=None):
+    f = open(filepath, 'r')
+    key_type = None
+    for line in f:
+        if line.startswith('-----BEGIN'):
+            key_type = line.split()[1]
+    f.seek(0)
+    if not key_type:
+        raise SSHException("Invalid key format")
+    key_class = key_name_to_class.get(key_type)
+    if not key_class:
+        raise SSHException("Unknown key type {}".format(key_type))
+    key = key_class.from_private_key(f, password)
+    return key
 
 class JanusContext(object):
     def __init__(self, username=None, groups=None,
