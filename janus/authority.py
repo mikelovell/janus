@@ -56,8 +56,7 @@ class SSHCertAuthority(object):
         cert_req = certificate.SSHCertificate(key=key)
         cert_req.type = req.get('certificateType') 
         date_stamp = datetime.datetime.utcnow().strftime("%Y%m%d:%H%M%S")
-        name = "{}-{}-{}-cert".format(ctx.get('username'),
-                                      self.ca_name, date_stamp)
+        name = "{}-{}-{}-cert".format(ctx.username, self.ca_name, date_stamp)
         cert_req.key_id = name
 
         start_time = time.time()

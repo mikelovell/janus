@@ -17,23 +17,11 @@ from paramiko.rsakey import RSAKey
 
 from janus.authority import SSHCertAuthorityManager
 from janus import certificate
-from janus.util import JanusSSHAgent
+from janus.util import JanusContext, JanusSSHAgent
 
 DEFAULT_CONFIG = 'example.conf'
 DEFAULT_KEY_TYPE = 'ecdsa'
 DEFAULT_KEY_BITS = 256
-
-def get_context_from_environ():
-    ctx = {}
-    if 'SUDO_USER' in os.environ.keys():
-        ctx['username'] = os.environ.get('SUDO_USER')
-    else:
-        ctx['username'] = os.environ.get('USER')
-    if not ctx['username']:
-        err = "Error determining User's Name"
-        raise Exception(err)
-
-    return ctx
 
 def generate_key(args):
     key_class = None
@@ -98,7 +86,7 @@ def cmd_certreq(args):
     else:
         key = read_key_file(args)
 
-    context = get_context_from_environ()
+    context = JanusContext.from_local_shell()
     request = {}
     request['publicKeyType'] = key.get_name()
     request['publicKey'] = base64.b64encode(key.asbytes())

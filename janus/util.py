@@ -1,7 +1,9 @@
 from contextlib import contextmanager
 from cStringIO import StringIO
 import fcntl
+import grp
 import importlib
+import os
 import socket
 import time
 
@@ -43,6 +45,23 @@ def import_class(name):
         raise ImportError("{} in module {} not found".\
                           format(parts[2], parts[0]))
     return cls
+
+class JanusContext(object):
+    def __init__(self, username=None, groups=None,
+                 req_source=None, req_addr=None):
+        self.username = username
+        self.groups = groups if groups else []
+        self.req_source = req_source
+        self.req_addr = req_addr
+
+    @staticmethod
+    def from_local_shell():
+        username = os.getlogin()
+        groups = []
+        for group in grp.getgrall():
+            if username in group.gr_mem:
+                groups.append(group.gr_name)
+        return JanusContext(username, groups, 'shell')
 
 SSH2_AGENTC_ADD_IDENTITY = byte_chr(17)
 SSH2_AGENTC_ADD_ID_CONSTRAINED = byte_chr(25)
