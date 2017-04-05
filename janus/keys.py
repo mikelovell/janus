@@ -28,8 +28,8 @@ class KeyBackend(object):
             raise Exception(err)
         pub_key_class = util.key_name_to_class.get(pub_parts[0])
         pub_key = pub_key_class(data=base64.b64decode(pub_parts[1]))
-        if len(pub_parts) == 3:
-            self.pub_key_comment = pub_parts[2]
+        if len(pub_parts) >= 3:
+            self.pub_key_comment = ' '.join(pub_parts[2:])
         return pub_key_class, pub_key
 
     def is_online(self):
