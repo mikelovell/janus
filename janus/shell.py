@@ -102,7 +102,7 @@ def cmd_certreq(args):
     if args.principals:
         request['principals'] = args.principals
     else:
-        request['principals'] = [context['username']]
+        request['principals'] = [context.username]
     request['extensions'] = {'permit-X11-forwarding': '',
                              'permit-agent-forwarding': '',
                              'permit-port-forwarding': '',
