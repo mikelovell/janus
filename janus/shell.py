@@ -52,8 +52,8 @@ def read_key_file(args):
         key = util.read_key_file(args.key_file, password=p)
     return key
 
-def write_cert_file(args, cert):
-    cert_path = "{}-cert.pub".format(args.key_file)
+def write_cert_file(path, cert):
+    cert_path = "{}-cert.pub".format(path)
     cert_file = open(cert_path, 'w')
     cert_b64 = base64.b64encode(cert.asbytes())
     cert_file.write("{} {}".format(cert.get_name(), cert_b64))
@@ -117,7 +117,7 @@ def cmd_certreq(args):
     if args.gen_key and args.key_file:
         key.write_private_key_file(args.key_file)
     if args.key_file:
-        write_cert_file(args, cert)
+        write_cert_file(args.key_file, cert)
 
     if args.ssh_add:
         res = add_key_cert_to_agent(args, key, cert)
