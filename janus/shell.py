@@ -172,6 +172,7 @@ def main():
                               type=int,
                               help="Bits in key. Dependent on key type")
     args_certreq.add_argument('--ssh-add', '-a', action='store_true',
+                              default=os.environ.has_key('SSH_AUTH_SOCK'),
                               help="Add new cert and key to an ssh-agent")
     args_certreq.add_argument('--agent-sock', '-s', default=auth_sock_path,
                               help="Path to read or write private key from")
