@@ -23,8 +23,8 @@ from janus import certificate
 from janus import util
 
 DEFAULT_CONFIG = 'example.conf'
-DEFAULT_KEY_TYPE = 'ecdsa'
-DEFAULT_KEY_BITS = 256
+DEFAULT_KEY_TYPE = 'rsa'
+DEFAULT_KEY_BITS = 4096
 
 def generate_key(args):
     key_class = None
