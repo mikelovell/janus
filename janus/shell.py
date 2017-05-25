@@ -8,6 +8,7 @@ import getpass
 import os
 import sys
 import traceback
+import uuid
 
 from ecdsa import curves
 
@@ -68,6 +69,20 @@ def add_key_cert_to_agent(args, key, cert):
     agent = util.JanusSSHAgent(args.agent_sock)
     return agent.add_key_cert(key, cert)
 
+def find_ca(manager, name_or_id):
+    try:
+        ca_is_uuid = uuid.UUID(name_or_id)
+    except:
+        ca_is_uuid = False
+
+    if ca_is_uuid:
+        return manager.authorities.get(name_or_id)
+    else:
+        authorities = manager.list_authorities()
+        for a in authorities:
+            if a['name'] == name_or_id:
+                return manager.authorities.get(a['id'])
+
 def cmd_calist(args):
     authorities = args.manager.list_authorities()
     fstr = "UUID: {id} Name: {name} State: {state}"
@@ -83,7 +98,7 @@ def cmd_certreq(args):
         err = "Either --key-file or --ssh-add must be specified for new key"
         raise Exception(err)
 
-    authority = args.manager.authorities.get(args.ca)
+    authority = find_ca(args.manager, args.ca)
     if not authority:
         err = "Authority {} count not be found.".format(args.ca)
         raise Exception(err)
@@ -127,7 +142,7 @@ def cmd_certreq(args):
         print("Cert added to agent at {}".format(args.agent_sock))
 
 def cmd_capubkey(args):
-    authority = args.manager.authorities.get(args.ca)
+    authority = find_ca(args.manager, args.ca)
     if not authority:
         err = "Authority {} count not be found.".format(args.ca)
         raise Exception(err)
