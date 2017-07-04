@@ -6,6 +6,7 @@ import importlib
 import os
 import socket
 import time
+import uuid
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
@@ -71,6 +72,7 @@ class JanusContext(object):
         self.groups = groups if groups else []
         self.req_source = req_source
         self.req_addr = req_addr
+        self.request_id = uuid.uuid4()
 
     @staticmethod
     def from_local_shell():
@@ -80,6 +82,11 @@ class JanusContext(object):
             if username in group.gr_mem:
                 groups.append(group.gr_name)
         return JanusContext(username, groups, 'shell')
+
+    def __str__(self):
+        return "Janus Context - Username: {username}, Groups: {groups}, " \
+                "Request Source: {req_source}, Request Address: {req_addr}, " \
+                "Request UUID: {request_id}".format(**self.__dict__)
 
 SSH2_AGENTC_ADD_IDENTITY = byte_chr(17)
 SSH2_AGENTC_ADD_ID_CONSTRAINED = byte_chr(25)
