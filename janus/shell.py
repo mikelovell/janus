@@ -4,9 +4,11 @@ import argparse
 import base64
 from ConfigParser import SafeConfigParser
 from cStringIO import StringIO
+import getpass
 import os
 import sys
 import traceback
+import uuid
 
 from ecdsa import curves
 
@@ -14,26 +16,15 @@ from paramiko.agent import Agent
 from paramiko.dsskey import DSSKey
 from paramiko.ecdsakey import ECDSAKey
 from paramiko.rsakey import RSAKey
+from paramiko.ssh_exception import PasswordRequiredException
 
 from janus.authority import SSHCertAuthorityManager
 from janus import certificate
-from janus.util import JanusSSHAgent
+from janus import util
 
 DEFAULT_CONFIG = 'example.conf'
-DEFAULT_KEY_TYPE = 'ecdsa'
-DEFAULT_KEY_BITS = 256
-
-def get_context_from_environ():
-    ctx = {}
-    if 'SUDO_USER' in os.environ.keys():
-        ctx['username'] = os.environ.get('SUDO_USER')
-    else:
-        ctx['username'] = os.environ.get('USER')
-    if not ctx['username']:
-        err = "Error determining User's Name"
-        raise Exception(err)
-
-    return ctx
+DEFAULT_KEY_TYPE = 'rsa'
+DEFAULT_KEY_BITS = 4096
 
 def generate_key(args):
     key_class = None
@@ -55,10 +46,15 @@ def generate_key(args):
     return key_class.generate(*key_args)
 
 def read_key_file(args):
-    raise NotImplementedError()
+    try:
+        key = util.read_key_file(args.key_file)
+    except PasswordRequiredException:
+        p = getpass.getpass("Password for {}: ".format(args.key_file))
+        key = util.read_key_file(args.key_file, password=p)
+    return key
 
-def write_cert_file(args, cert):
-    cert_path = "{}-cert.pub".format(args.key_file)
+def write_cert_file(path, cert):
+    cert_path = "{}-cert.pub".format(path)
     cert_file = open(cert_path, 'w')
     cert_b64 = base64.b64encode(cert.asbytes())
     cert_file.write("{} {}".format(cert.get_name(), cert_b64))
@@ -70,8 +66,22 @@ def add_key_cert_to_agent(args, key, cert):
         err = "Agent socket not provided"
         raise Exception(err)
 
-    agent = JanusSSHAgent(args.agent_sock)
+    agent = util.JanusSSHAgent(args.agent_sock)
     return agent.add_key_cert(key, cert)
+
+def find_ca(manager, name_or_id):
+    try:
+        ca_is_uuid = uuid.UUID(name_or_id)
+    except:
+        ca_is_uuid = False
+
+    if ca_is_uuid:
+        return manager.authorities.get(name_or_id)
+    else:
+        authorities = manager.list_authorities()
+        for a in authorities:
+            if a['name'] == name_or_id:
+                return manager.authorities.get(a['id'])
 
 def cmd_calist(args):
     authorities = args.manager.list_authorities()
@@ -88,7 +98,7 @@ def cmd_certreq(args):
         err = "Either --key-file or --ssh-add must be specified for new key"
         raise Exception(err)
 
-    authority = args.manager.authorities.get(args.ca)
+    authority = find_ca(args.manager, args.ca)
     if not authority:
         err = "Authority {} count not be found.".format(args.ca)
         raise Exception(err)
@@ -98,7 +108,7 @@ def cmd_certreq(args):
     else:
         key = read_key_file(args)
 
-    context = get_context_from_environ()
+    context = util.JanusContext.from_local_shell()
     request = {}
     request['publicKeyType'] = key.get_name()
     request['publicKey'] = base64.b64encode(key.asbytes())
@@ -107,7 +117,7 @@ def cmd_certreq(args):
     if args.principals:
         request['principals'] = args.principals
     else:
-        request['principals'] = [context['username']]
+        request['principals'] = [context.username]
     request['extensions'] = {'permit-X11-forwarding': '',
                              'permit-agent-forwarding': '',
                              'permit-port-forwarding': '',
@@ -122,7 +132,7 @@ def cmd_certreq(args):
     if args.gen_key and args.key_file:
         key.write_private_key_file(args.key_file)
     if args.key_file:
-        write_cert_file(args, cert)
+        write_cert_file(args.key_file, cert)
 
     if args.ssh_add:
         res = add_key_cert_to_agent(args, key, cert)
@@ -132,7 +142,7 @@ def cmd_certreq(args):
         print("Cert added to agent at {}".format(args.agent_sock))
 
 def cmd_capubkey(args):
-    authority = args.manager.authorities.get(args.ca)
+    authority = find_ca(args.manager, args.ca)
     if not authority:
         err = "Authority {} count not be found.".format(args.ca)
         raise Exception(err)
@@ -177,6 +187,7 @@ def main():
                               type=int,
                               help="Bits in key. Dependent on key type")
     args_certreq.add_argument('--ssh-add', '-a', action='store_true',
+                              default=os.environ.has_key('SSH_AUTH_SOCK'),
                               help="Add new cert and key to an ssh-agent")
     args_certreq.add_argument('--agent-sock', '-s', default=auth_sock_path,
                               help="Path to read or write private key from")

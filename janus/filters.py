@@ -31,7 +31,7 @@ class UserOnlyPricipals(BaseFilter):
         pass
 
     def process(self, ctx, cert_request):
-        cert_request.pricipals = [ctx['username']]
+        cert_request.pricipals = [ctx.username]
         return True, True, False
 
 class AllowRootPrincipal(BaseFilter):
@@ -43,10 +43,10 @@ class AllowRootPrincipal(BaseFilter):
     def process(self, ctx, cert_request):
         modified = False
         if 'root' in cert_request.principals:
-            if ctx['username'] not in self.allowed_users:
+            if ctx.username not in self.allowed_users:
                 return False, False, False
         else:
-            if ctx['username'] in self.allowed_users:
+            if ctx.username in self.allowed_users:
                 cert_request.principals.append('root')
                 modified = True
         return True, modified, False
@@ -55,8 +55,8 @@ class EnsureUsernamePrincipal(BaseFilter):
     name = "EnsureUsernamePrincipalFilter"
     def process(self, ctx, cert_request):
         modified = False
-        if ctx['username'] not in cert_request.principals:
-            cert_request.principals.append(ctx['username'])
+        if ctx.username not in cert_request.principals:
+            cert_request.principals.append(ctx.username)
             modified = True
         return True, modified, False
 

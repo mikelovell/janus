@@ -1,9 +1,12 @@
 from contextlib import contextmanager
 from cStringIO import StringIO
 import fcntl
+import grp
 import importlib
+import os
 import socket
 import time
+import uuid
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
@@ -24,6 +27,9 @@ key_name_to_class = {
     'ecdsa-sha2-nistp256': ECDSAKey,
     'ecdsa-sha2-nistp384': ECDSAKey,
     'ecdsa-sha2-nistp521': ECDSAKey,
+    'RSA': RSAKey,
+    'EC': ECDSAKey,
+    'DSA': DSSKey,
 }
 
 @contextmanager
@@ -43,6 +49,44 @@ def import_class(name):
         raise ImportError("{} in module {} not found".\
                           format(parts[2], parts[0]))
     return cls
+
+def read_key_file(filepath, password=None):
+    f = open(filepath, 'r')
+    key_type = None
+    for line in f:
+        if line.startswith('-----BEGIN'):
+            key_type = line.split()[1]
+    f.seek(0)
+    if not key_type:
+        raise SSHException("Invalid key format")
+    key_class = key_name_to_class.get(key_type)
+    if not key_class:
+        raise SSHException("Unknown key type {}".format(key_type))
+    key = key_class.from_private_key(f, password)
+    return key
+
+class JanusContext(object):
+    def __init__(self, username=None, groups=None,
+                 req_source=None, req_addr=None):
+        self.username = username
+        self.groups = groups if groups else []
+        self.req_source = req_source
+        self.req_addr = req_addr
+        self.request_id = uuid.uuid4()
+
+    @staticmethod
+    def from_local_shell():
+        username = os.getlogin()
+        groups = []
+        for group in grp.getgrall():
+            if username in group.gr_mem:
+                groups.append(group.gr_name)
+        return JanusContext(username, groups, 'shell')
+
+    def __str__(self):
+        return "Janus Context - Username: {username}, Groups: {groups}, " \
+                "Request Source: {req_source}, Request Address: {req_addr}, " \
+                "Request UUID: {request_id}".format(**self.__dict__)
 
 SSH2_AGENTC_ADD_IDENTITY = byte_chr(17)
 SSH2_AGENTC_ADD_ID_CONSTRAINED = byte_chr(25)

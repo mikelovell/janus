@@ -28,8 +28,8 @@ class KeyBackend(object):
             raise Exception(err)
         pub_key_class = util.key_name_to_class.get(pub_parts[0])
         pub_key = pub_key_class(data=base64.b64decode(pub_parts[1]))
-        if len(pub_parts) == 3:
-            self.pub_key_comment = pub_parts[2]
+        if len(pub_parts) >= 3:
+            self.pub_key_comment = ' '.join(pub_parts[2:])
         return pub_key_class, pub_key
 
     def is_online(self):
@@ -54,22 +54,19 @@ class KeyFileBackend(KeyBackend):
         self.key = priv_key
         self.pub_key = pub_key
 
-class AgentKeyBackend(KeyBackend, ParamikoAgent.Agent):
+class AgentKeyBackend(KeyBackend):
     def __init__(self, **kwargs):
         if 'agent_sock' not in kwargs.keys() or \
            'pub_key_file' not in kwargs.keys():
-            err = "agent_sock or pub_key_file not provided"
+            err = "agent_sock and pub_key_file required"
             raise Exception(err)
-        ParamikoAgent.AgentSSH.__init__(self)
         pub_key_class, pub_key = self._read_pub_key(kwargs['pub_key_file'])
         self.pub_key = pub_key
 
-        self.conn = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        self.conn.connect(kwargs['agent_sock'])
-        self._connect(self.conn)
+        self._agent = util.JanusSSHAgent(kwargs['agent_sock'])
 
         self.key = None
-        for key in self._keys:
+        for key in self._agent.get_keys():
             if key.asbytes() == pub_key.asbytes():
                 self.key = key
                 self.key.can_sign = self.returnTrue
