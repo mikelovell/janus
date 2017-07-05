@@ -18,6 +18,15 @@ from paramiko.ecdsakey import ECDSAKey
 from paramiko.rsakey import RSAKey
 from paramiko.ssh_exception import PasswordRequiredException
 
+HAS_EVENTLET = False
+try:
+    import eventlet
+    from eventlet import wsgi as eventlet_wsgi
+    HAS_EVENTLET = True
+except ImportError:
+    pass
+
+from janus import api
 from janus.authority import SSHCertAuthorityManager
 from janus import certificate
 from janus import util
@@ -157,6 +166,16 @@ def cmd_capubkey(args):
         key_file.close()
         print("Public key written to {}".format(args.key_file))
 
+def cmd_serve(args):
+    if not HAS_EVENTLET:
+        raise Exception("python-eventlet is required to run api server" \
+                        "through the cli. Try installing it or running" \
+                        "through another WSGI server")
+
+    sock = eventlet.listen((args.listen, args.port))
+    app = api.build_app(args.config_file)
+    eventlet_wsgi.server(sock, app)
+
 def main():
     args = argparse.ArgumentParser(description='Simple Janus Cli')
     args.add_argument('--config-file', default=DEFAULT_CONFIG,
@@ -197,6 +216,13 @@ def main():
                               help="Request principals. " \
                                    "Can specifed multiple times.")
     args_certreq.set_defaults(func=cmd_certreq)
+
+    args_serve = subargs.add_parser('serve')
+    args_serve.add_argument('--listen', '-l', default='127.0.0.1',
+                            help="Address to listen on")
+    args_serve.add_argument('--port', '-p', type=int, default=3126,
+                            help="Port to listen on")
+    args_serve.set_defaults(func=cmd_serve)
 
     args = args.parse_args()
 

@@ -1,6 +1,7 @@
 from setuptools import setup
 
-requires = ['paramiko >= 1.13.0', 'ecdsa', 'cryptography']
+requires = ['paramiko >= 1.13.0', 'ecdsa', 'cryptography', 'falcon',
+            'passlib']
 
 entry_points = {'console_scripts': ['janus-cli=janus.shell:main']}
 
