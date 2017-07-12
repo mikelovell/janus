@@ -174,7 +174,7 @@ def cmd_serve(args):
 
     sock = eventlet.listen((args.listen, args.port))
     app = api.build_app(args.config_file)
-    eventlet_wsgi.server(sock, app)
+    eventlet_wsgi.server(sock, app, keepalive=False)
 
 def main():
     args = argparse.ArgumentParser(description='Simple Janus Cli')
