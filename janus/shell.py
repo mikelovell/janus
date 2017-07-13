@@ -173,8 +173,11 @@ def cmd_serve(args):
                         "through another WSGI server")
 
     sock = eventlet.listen((args.listen, args.port))
+    ssl_sock = eventlet.wrap_ssl(sock, server_side=True,
+                                 certfile=args.ssl_cert,
+                                 keyfile=args.ssl_key)
     app = api.build_app(args.config_file)
-    eventlet_wsgi.server(sock, app, keepalive=False)
+    eventlet_wsgi.server(ssl_sock, app, keepalive=False)
 
 def main():
     args = argparse.ArgumentParser(description='Simple Janus Cli')
@@ -221,6 +224,10 @@ def main():
     args_serve.add_argument('--listen', '-l', default='127.0.0.1',
                             help="Address to listen on")
     args_serve.add_argument('--port', '-p', type=int, default=3126,
+                            help="Port to listen on")
+    args_serve.add_argument('--ssl-cert', required=True,
+                            help="Port to listen on")
+    args_serve.add_argument('--ssl-key', required=True,
                             help="Port to listen on")
     args_serve.set_defaults(func=cmd_serve)
 
