@@ -30,7 +30,6 @@ class JanusRemoteClientV1(object):
                                                    resource=resource)
 
         kwargs = {}
-        kwargs['verify'] = 'cert.pem'
         kwargs['headers'] = {}
         if self.username and self.password:
             kwargs['auth'] = (self.username, self.password)
