@@ -1,4 +1,7 @@
 import time
+import socket
+from distutils.util import strtobool
+from janus import util
 
 class BaseFilter(object):
     def __init__(self, **kwargs):
@@ -24,6 +27,53 @@ class DurationFilter(BaseFilter):
                 cert_request.valid_before = max_end
                 modified = True
         return True, modified, False
+
+class HostnameMatchesIP(BaseFilter):
+    name = "HostnameMatchesIPFilter"
+
+    def __init__(self, **kwargs):
+        self.allow_shell = strtobool(kwargs.get('allow_shell'))
+
+    def process(self, ctx, cert_request):
+        addr = ctx.req_addr
+
+        if addr is None:
+            if self.allow_shell:
+                # TODO: Make sure the only time we don't have
+                #       an address is when we're in a shell
+                #       context.
+                return True, False, False
+
+            # We're not configured to allow shell
+            # so not having a source address means
+            # we can't do our job.
+            return False, False, False
+
+        for principal in cert_request.principals:
+            try:
+                dns_ip = socket.gethostbyname(principal)
+                if dns_ip != addr:
+                    return False, False, False
+            except:
+                # If we can't resolve DNS, we can't verify
+                return False, False, False
+
+        return True, False, False
+
+class HostKeyMatches(BaseFilter):
+    name = "HostKeyMatchesFilter"
+    def process(self, ctx, cert_request):
+        if cert_request != SSH_CERT_TYPE_HOST:
+            return True, False, False
+        hostname = cert_request.principals[0]
+        types = [cert_request.key.get_name()]
+
+        keys = util.get_host_keys(hostname, types=types)
+        key_strings = [k.get_base64() for k in keys]
+        if cert_request.key.get_base64() in key_strings:
+            return True, False, False
+
+        return False, False, False
 
 class UserOnlyPricipals(BaseFilter):
     name = "UserOnlyPrincipalFilter"
