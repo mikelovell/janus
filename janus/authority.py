@@ -81,6 +81,8 @@ class SSHCertAuthority(object):
         request_modified = False
         delay_signing = False
         for req_filter in self.filters:
+            if cert_req.type not in req_filter.cert_types:
+                continue
             allowed, modified, delayed = req_filter.process(ctx, cert_req)
             if not allowed:
                 err = "Request not allowed by {}".format(req_filter.name)

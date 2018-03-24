@@ -2,6 +2,7 @@ import time
 import socket
 from distutils.util import strtobool
 from janus import util
+from janus.certificate import SSH_CERT_TYPE_HOST, SSH_CERT_TYPE_USER
 
 class BaseFilter(object):
     def __init__(self, **kwargs):
@@ -12,6 +13,8 @@ class BaseFilter(object):
 
 class DurationFilter(BaseFilter):
     name = "DurationFilter"
+    cert_types = [SSH_CERT_TYPE_USER, SSH_CERT_TYPE_HOST]
+
     def __init__(self, **kwargs):
         max_duration = kwargs.get('max_duration', '0')
         max_duration = int(max_duration)
@@ -30,6 +33,7 @@ class DurationFilter(BaseFilter):
 
 class HostnameMatchesIP(BaseFilter):
     name = "HostnameMatchesIPFilter"
+    cert_types = [SSH_CERT_TYPE_HOST]
 
     def __init__(self, **kwargs):
         self.allow_shell = strtobool(kwargs.get('allow_shell'))
@@ -62,6 +66,7 @@ class HostnameMatchesIP(BaseFilter):
 
 class HostKeyMatches(BaseFilter):
     name = "HostKeyMatchesFilter"
+    cert_types = [SSH_CERT_TYPE_HOST]
     def process(self, ctx, cert_request):
         if cert_request != SSH_CERT_TYPE_HOST:
             return True, False, False
@@ -77,6 +82,7 @@ class HostKeyMatches(BaseFilter):
 
 class UserOnlyPricipals(BaseFilter):
     name = "UserOnlyPrincipalFilter"
+    cert_types = [SSH_CERT_TYPE_USER]
     def __init__(self, **kwargs):
         pass
 
@@ -86,6 +92,7 @@ class UserOnlyPricipals(BaseFilter):
 
 class AllowRootPrincipal(BaseFilter):
     name = "AllowRootPrincipalFilter"
+    cert_types = [SSH_CERT_TYPE_USER]
     def __init__(self, **kwargs):
         allowed_users = kwargs.get('allowed_users', '')
         self.allowed_users = allowed_users.split(',')
@@ -103,6 +110,7 @@ class AllowRootPrincipal(BaseFilter):
 
 class EnsureUsernamePrincipal(BaseFilter):
     name = "EnsureUsernamePrincipalFilter"
+    cert_types = [SSH_CERT_TYPE_USER]
     def process(self, ctx, cert_request):
         modified = False
         if ctx.username not in cert_request.principals:
