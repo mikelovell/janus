@@ -7,6 +7,7 @@ import os
 import socket
 import time
 import uuid
+import base64
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
@@ -18,6 +19,7 @@ from paramiko.message import Message
 from paramiko.py3compat import byte_chr
 from paramiko.rsakey import RSAKey
 from paramiko.ssh_exception import SSHException
+from paramiko.transport import Transport
 
 from janus import certificate
 
@@ -52,18 +54,50 @@ def import_class(name):
 
 def read_key_file(filepath, password=None):
     f = open(filepath, 'r')
-    key_type = None
+    cipher_name = None
+    public_key = False
     for line in f:
         if line.startswith('-----BEGIN'):
-            key_type = line.split()[1]
+            cipher_name = line.split()[1]
+        elif line.startswith('ssh-'):
+            cipher_name, public_key = line.split()[0:2]
+            public_key = base64.b64decode(public_key)
     f.seek(0)
-    if not key_type:
+    if not cipher_name:
         raise SSHException("Invalid key format")
-    key_class = key_name_to_class.get(key_type)
+    key_class = key_name_to_class.get(cipher_name)
     if not key_class:
-        raise SSHException("Unknown key type {}".format(key_type))
-    key = key_class.from_private_key(f, password)
+        raise SSHException("Unknown cipher {}".format(cipher_name))
+    if public_key:
+        key = key_class(data=public_key)
+    else:
+        key = key_class.from_private_key(f, password)
     return key
+
+def get_host_keys(address, port=22, types=None):
+    if types is None:
+        types = Transport._preferred_keys
+
+    af, sock_type, proto, name, addr = socket.getaddrinfo(
+        address, port, 0,0, socket.IPPROTO_TCP)[0]
+
+    keys = []
+    for key_type in types:
+        try:
+            sock = socket.socket(af, sock_type, proto)
+            sock.connect(addr)
+
+            t = Transport(sock)
+            t.get_security_options().key_types = [key_type]
+            t.start_client()
+            keys.append(t.get_remote_server_key())
+        except Exception:
+            pass
+        finally:
+            t.close()
+            sock.close()
+
+    return keys
 
 class JanusContext(object):
     def __init__(self, username=None, groups=None,

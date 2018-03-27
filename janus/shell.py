@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/env python2
 
 import argparse
 import base64
@@ -113,16 +113,28 @@ def cmd_certreq(args):
     request['publicKeyType'] = key.get_name()
     request['publicKey'] = base64.b64encode(key.asbytes())
     request['requestedDuration'] = args.duration
-    request['certificateType'] = certificate.SSH_CERT_TYPE_USER
+    if args.cert_type == 'user':
+        request['certificateType'] = certificate.SSH_CERT_TYPE_USER
+        request['extensions'] = {'permit-X11-forwarding': '',
+                                 'permit-agent-forwarding': '',
+                                 'permit-port-forwarding': '',
+                                 'permit-pty': '',
+                                 'permit-user-rc': '', }
+        if not args.principals:
+            request['principals'] = [context.username]
+
+    elif args.cert_type == 'host':
+        request['certificateType'] = certificate.SSH_CERT_TYPE_HOST
+        if not args.principals:
+            raise Exception("You must specify principals for a host key")
+    else:
+        # Can't happen right now, but just in case some new cert type
+        # comes out and we add to to argparse but not here.
+        raise Exception("Cannot handle {} certificate type.".format(
+            args.cert_type))
+
     if args.principals:
         request['principals'] = args.principals
-    else:
-        request['principals'] = [context.username]
-    request['extensions'] = {'permit-X11-forwarding': '',
-                             'permit-agent-forwarding': '',
-                             'permit-port-forwarding': '',
-                             'permit-pty': '',
-                             'permit-user-rc': '',}
 
     cert_id, cert = authority.process_request(context, request)
     print("New Cert ID {}.".format(cert_id))
@@ -177,6 +189,10 @@ def main():
     args_certreq = subargs.add_parser('cert-request')
     args_certreq.add_argument('--ca', '-c', required=True,
                               help="Certificate authority to request from")
+    args_certreq.add_argument('--cert-type', '-e', choices=['host', 'user'],
+                              default='user',
+                              help="Request either a host or user "
+                                   "certificate.")
     args_certreq.add_argument('--key-file', '-f',
                               help="Path to read or write private key from")
     args_certreq.add_argument('--gen-key', '-g', action='store_true',
