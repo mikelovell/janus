@@ -54,7 +54,7 @@ class SSHCertAuthority(object):
             raise SSHCertRequestException(err)
 
         cert_req = certificate.SSHCertificate(key=key)
-        cert_req.type = req.get('certificateType') 
+        cert_req.type = req.get('certificateType')
         date_stamp = datetime.datetime.utcnow().strftime("%Y%m%d:%H%M%S")
         name = "{}-{}-{}-cert".format(ctx.username, self.ca_name, date_stamp)
         cert_req.key_id = name
@@ -81,6 +81,8 @@ class SSHCertAuthority(object):
         request_modified = False
         delay_signing = False
         for req_filter in self.filters:
+            if cert_req.type not in req_filter.cert_types:
+                continue
             allowed, modified, delayed = req_filter.process(ctx, cert_req)
             if not allowed:
                 err = "Request not allowed by {}".format(req_filter.name)
