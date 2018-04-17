@@ -106,6 +106,10 @@ def cmd_remote_certreq(args):
         cert_req['principals'] = args.principals
     else:
         cert_req['principals'] = [args.user]
+    if args.cert_type == 'host':
+        cert_req['certificateType'] = certificate.SSH_CERT_TYPE_HOST
+    else:
+        cert_req['certificateType'] = certificate.SSH_CERT_TYPE_USER
 
     result = client.cert_request(authority['id'], cert_req)
 #    if result.status_code != 200:
@@ -166,6 +170,9 @@ def main():
     args_certreq.add_argument('--principals', '-p', nargs='*',
                               help="Request principals. " \
                                    "Can specifed multiple times.")
+    args_certreq.add_argument('--cert-type', '-r', default='user',
+                              choices=['user', 'host'],
+                              help="Request a User or Host certificate")
     args_certreq.set_defaults(func=cmd_remote_certreq)
 
     args = args.parse_args()
