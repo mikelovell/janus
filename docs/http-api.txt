@@ -1,3 +1,7 @@
+This is a description of an intended api and not necessariy the currently
+implemented one. It was written before actual code started and some things
+have changed since.
+
 ======
 GET /
 
